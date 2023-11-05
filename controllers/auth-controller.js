@@ -105,7 +105,7 @@ const updateAvatar = async (req, res) => {
       if (err) {
         console.error("Avatar processing error:", err);
       } else {
-        img.contain(250, 250).write(resultUpload);
+        img.resize(250, 250).write(resultUpload);
       }
     });
   
