@@ -4,11 +4,21 @@ import bcrypt from "bcrypt"
 
 import jwt from "jsonwebtoken"
 
+import gravatar from "gravatar";
+
+import Jimp from "jimp";
+
+import fs from "fs/promises";
+
+import path from "path";
+
 import ctrlWrapper from "../decorators/ctrlWrapper.js";
 
 import {HttpError} from "../helpers/index.js"
 
 const {JWT_SECRET} = process.env
+
+const avatarsPath = path.resolve("public", "avatars")
 
 const register = async (req, res, next) => {
     
@@ -22,7 +32,8 @@ const register = async (req, res, next) => {
 
     const hashPassword = await bcrypt.hash(password, 10)
 
-    const newUser = await User.create({...req.body, password: hashPassword});
+    const avatarURL = gravatar.url(email);
+    const newUser = await User.create({...req.body, password: hashPassword, avatarURL });
 
     res.status(201).json({
         email: newUser.email,
@@ -82,9 +93,35 @@ const current = async (req, res) => {
 
 }
 
+
+const updateAvatar = async (req, res) => {
+    const { _id } = req.user;
+  
+    const { path: tempUpload, originalname } = req.file;
+    const fileName = `${_id}_${originalname}`;
+    const resultUpload = path.resolve(avatarsDir, fileName);
+  
+    Jimp.read(tempUpload, (err, img) => {
+      if (err) {
+        console.error("Avatar processing error:", err);
+      } else {
+        img.contain(250, 250).write(resultUpload);
+      }
+    });
+  
+    await fs.unlink(tempUpload);
+  
+    const avatarURL = path.join("avatars", fileName);
+    await User.findByIdAndUpdate(_id, { avatarURL });
+  
+    res.status(200).json({ avatarURL });
+  };
+
+
 export default {
     register: ctrlWrapper(register),
     login: ctrlWrapper(login),
     logout: ctrlWrapper(logout),
     current: ctrlWrapper(current),
+    updateAvatar: ctrlWrapper(updateAvatar)
   }
